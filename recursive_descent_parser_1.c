@@ -1,27 +1,22 @@
 /* This is a simple recursive descent parser for the following grammar:
+	S -> T END | T + E END
 	E -> T | T + E
 	T -> int | int * T | (E)
-	
-	the grammar has a flaw, in that it could accept malformed expressions, 
-	because it would be short circuited by correct sub-expressions at the beginning 
-	of the bad expression, it is lazy, for example :
-	int (()
-	would be accepted, because int is a valid E, the parser was short circuited here.
-	the solution to this is a proper expression ending terminal introduced into the grammar.
 */
 
 #include <stdio.h>
 #include <ctype.h>
-typedef enum {INTEGER, PLUS, OPEN, CLOSE, TIMES} TOKEN;
+typedef enum {INTEGER, PLUS, OPEN, CLOSE, TIMES, END} TOKEN;
 typedef _Bool bool;
 
+bool S(void);
 bool T(void);
 bool E(void);
 
-/* token stream of expression : int+((int+int)*int) */
-TOKEN str[] = { INTEGER, PLUS, OPEN, OPEN, INTEGER, PLUS, INTEGER, CLOSE, TIMES, INTEGER, CLOSE};
+/* token stream of expression : int+(int*int) */
+TOKEN valid_str[] = { INTEGER, PLUS, INTEGER, PLUS, INTEGER, TIMES, INTEGER, END};
 /* token stream of invalid expression : (() */
-TOKEN invalid_str[] = { OPEN, OPEN, CLOSE};
+TOKEN invalid_str[] = { INTEGER, OPEN, OPEN, CLOSE, END};
 /* token stream pointer */
 TOKEN *next;
 
@@ -44,18 +39,30 @@ bool T()
 		(next = save, T2()) ||
 		(next = save, T3());
 }
+bool S1(){ return T()&&term(END); }
+bool S2(){ return T()&&term(PLUS)&&E()&&term(END); }
+bool S()
+{
+	TOKEN *save = next;
+	return S1() ||
+		(next = save, S2());
+}
 
 int main()
 {
 	printf("\ntrying a valid expression.");
-	next = str;
-	if (E() == 1){
+	next = valid_str;
+	if (S()){
 		printf("\nparse succeeded.");
+	}
+	else
+	{
+		printf("\nparse failed\n");
 	}
 
 	printf("\ntrying an invalid expression.");
 	next = invalid_str;
-	if (E() == 1){
+	if (S()){
 		printf("\nparse succeeded.");
 	}
 	else {
